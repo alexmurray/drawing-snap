@@ -1,0 +1,96 @@
+name: drawing
+version: '0.4.2'
+summary: A drawing application for the GNOME desktop
+description: |
+ "Drawing" is a basic image editor, supporting PNG, JPEG and BMP file types.
+
+ It allows you to draw or edit pictures with tools such as:
+  * Pencil (with various options)
+  * Selection (cut/copy/paste/drag/…)
+  * Line, Arc (with various options)
+  * Shapes (rectangle, circle, polygon, …)
+  * Text insertion
+  * Resizing, cropping, rotating
+
+base: core18
+grade: stable
+confinement: strict
+# icon: data/icons/hicolor/256x256/apps/com.github.maoschanz.drawing.png
+
+# snapcraft doesn't know about the license field
+passthrough:
+  license: GPL-3.0+
+
+slots:
+  # for GtkApplication registration
+  drawing:
+    interface: dbus
+    bus: session
+    name: com.github.maoschanz.drawing
+
+plugs:
+  gnome-3-28-1804:
+    interface: content
+    target: $SNAP/gnome-platform
+    default-provider: gnome-3-28-1804
+  gtk-3-themes:
+    interface: content
+    target: $SNAP/data-dir/themes
+    default-provider: gtk-common-themes
+  icon-themes:
+    interface: content
+    target: $SNAP/data-dir/icons
+    default-provider: gtk-common-themes
+  sound-themes:
+    interface: content
+    target: $SNAP/data-dir/sounds
+    default-provider: gtk-common-themes
+
+environment:
+  XDG_DATA_DIRS: $SNAP/usr/share:$XDG_DATA_DIRS
+
+apps:
+  drawing:
+    command: desktop-launch drawing
+    plugs:
+      - x11
+      - unity7
+      - desktop
+      - wayland
+      - gsettings
+    desktop: usr/share/applications/com.github.maoschanz.drawing.desktop
+
+parts:
+  desktop-gnome-platform:
+    source: https://github.com/ubuntu/snapcraft-desktop-helpers.git
+    source-subdir: gtk
+    plugin: make
+    make-parameters: ["FLAVOR=gtk3"]
+    build-packages:
+      - gcc
+    override-build: |
+      snapcraftctl build
+      mkdir -pv $SNAPCRAFT_PART_INSTALL/gnome-platform
+
+  drawing:
+    after: [desktop-gnome-platform]
+    source: https://github.com/maoschanz/drawing/archive/0.4.2.tar.gz
+    source-type: tar
+    plugin: meson
+    meson-parameters: [--prefix=/snap/drawing/current/usr]
+    organize:
+      snap/drawing/current/usr: usr
+    override-build: |
+      sed -i.bak -e 's|Icon=com.github.maoschanz.drawing$|Icon=${SNAP}/meta/gui/com.github.maoschanz.drawing|g' data/com.github.maoschanz.drawing.desktop.in
+      snapcraftctl build
+      echo $(pwd)
+      mkdir -p $SNAPCRAFT_PART_INSTALL/meta/gui/
+      cp data/icons/hicolor/scalable/apps/com.github.maoschanz.drawing.svg $SNAPCRAFT_PART_INSTALL/meta/gui/
+    build-packages:
+      - meson
+      - appstream-util
+      - libglib2.0-dev
+    stage-packages:
+      - python3-gi
+      - python3-gi-cairo
+      - gir1.2-gtk-3.0
